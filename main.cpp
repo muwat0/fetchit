@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <cctype>
 #include <sys/utsname.h>
+#include <sys/stat.h>
+#include <ctime>
 
 using std::string, std::cout;
 namespace fs = std::filesystem;
@@ -21,6 +23,7 @@ string getShell();
 string getCPU();
 string getGPU();
 string getRAM();
+string getOsDate();
 
 struct gpuId {
     string vendor;
@@ -63,6 +66,7 @@ int main (int argc, const char *argv[]) {
     cout << colorYELLOW <<"\t\t󰍛 CPU:  \t" << colorRESET << getCPU() << "\n";
     cout << colorYELLOW <<"\t\t󰾲 GPU:  \t" << colorRESET << getGPU() << "\n";
     cout << colorRED << "\t\t RAM:  \t" << colorRESET << getRAM() << "\n";
+    cout << colorBLUE << "\t\t OS Date:\t" << colorRESET << getOsDate() << "\n";
 
     return 0;
 }
@@ -362,4 +366,108 @@ string getRAM() {
     if (!memGigs.empty()) return memGigs;
 
     return "";
+}
+
+string getOsDate() {
+    struct stat info;
+    if (stat("/etc/hostname", &info) != 0) {
+        std::cerr << "Error: couldn't read /etc/hostname metadata\n";
+        return "";
+    }
+
+    std::time_t now = std::time(nullptr);
+    if (now < info.st_ctime) {
+        return "";
+    }
+
+    std::tm startTime{};
+    std::tm endTime{};
+    if (localtime_r(&info.st_ctime, &startTime) == nullptr) {
+        std::cerr << "Error: couldn't convert /etc/hostname ctime\n";
+        return "";
+    }
+    if (localtime_r(&now, &endTime) == nullptr) {
+        std::cerr << "Error: couldn't convert current time\n";
+        return "";
+    }
+
+    auto isLeapYear = [](int year) {
+        if (year % 400 == 0) return true;
+        if (year % 100 == 0) return false;
+        return year % 4 == 0;
+    };
+
+    auto daysInMonth = [&](int year, int month) {
+        if (month == 2) return isLeapYear(year) ? 29 : 28;
+        return 30 + ((month + (month > 7)) % 2);
+    };
+
+    int startYear = startTime.tm_year + 1900;
+    int startMonth = startTime.tm_mon + 1;
+    int startDay = startTime.tm_mday;
+    int startHour = startTime.tm_hour;
+    int startMinute = startTime.tm_min;
+
+    int endYear = endTime.tm_year + 1900;
+    int endMonth = endTime.tm_mon + 1;
+    int endDay = endTime.tm_mday;
+    int endHour = endTime.tm_hour;
+    int endMinute = endTime.tm_min;
+
+    if (endMinute < startMinute) {
+        endMinute += 60;
+        endHour -= 1;
+    }
+
+    if (endHour < startHour) {
+        endHour += 24;
+        endDay -= 1;
+    }
+
+    if (endDay < startDay) {
+        endMonth -= 1;
+        if (endMonth == 0) {
+            endMonth = 12;
+            endYear -= 1;
+        }
+        endDay += daysInMonth(endYear, endMonth);
+    }
+
+    if (endMonth < startMonth) {
+        endMonth += 12;
+        endYear -= 1;
+    }
+
+    int years = endYear - startYear;
+    int months = endMonth - startMonth;
+    int days = endDay - startDay;
+    int hours = endHour - startHour;
+    int minutes = endMinute - startMinute;
+
+    if (years < 0 || months < 0 || days < 0 || hours < 0 || minutes < 0) {
+        return "";
+    }
+
+    string out;
+    if (years > 0) out += std::to_string(years) + (years == 1 ? " year" : " years");
+    if (months > 0) {
+        if (!out.empty()) out += " ";
+        out += std::to_string(months) + (months == 1 ? " month" : " months");
+    }
+    if (days > 0) {
+        if (!out.empty()) out += " ";
+        out += std::to_string(days) + (days == 1 ? " day" : " days");
+    }
+    if (hours > 0) {
+        if (!out.empty()) out += " ";
+        out += std::to_string(hours) + (hours == 1 ? " hour" : " hours");
+    }
+    if (minutes > 0) {
+        if (!out.empty()) out += " ";
+        out += std::to_string(minutes) + (minutes == 1 ? " minute" : " minutes");
+    }
+
+    if (!out.empty()) return out;
+
+    return "0 minutes";
 }
