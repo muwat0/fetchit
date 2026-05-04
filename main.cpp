@@ -48,14 +48,21 @@ std::vector<gpuId> getGpuIds() {
 }
 
 int main (int argc, const char *argv[]) {
-    cout << "\t\t\t--- " << getUser() << "@" << getHost() << " ---\n";
-    cout << "\t\t distro:\t" << getDistro() << "\n";
-    cout << "\t\t kernel:\t" << getKernel() << "\n";
-    cout << "\t\t uptime:\t" << getUptime() << "\n";
-    cout << "\t\t shell:\t" << getShell() << "\n";
-    cout << "\t\t󰍛 CPU:  \t" << getCPU() << "\n";
-    cout << "\t\t GPU:  \t" << getGPU() << "\n";
-    cout << "\t\t RAM:  \t" << getRAM() << "\n";
+    const string colorRED = "\033[1;31m";
+    const string colorGREEN = "\033[1;32m";
+    const string colorBLUE = "\033[1;34m";
+    const string colorYELLOW = "\033[1;33m";
+    const string colorMAGENTA = "\033[1;35m";
+    const string colorRESET = "\033[0m";
+
+    cout << "\t\t\t--- " << colorGREEN << getUser() << colorRESET << "@" << colorRED << getHost() << colorRESET << " ---\n";
+    cout << colorGREEN << "\t\t distro:\t" << colorRESET << getDistro() << "\n";
+    cout << colorMAGENTA << "\t\t kernel:\t" << colorRESET << getKernel() << "\n";
+    cout << colorBLUE << "\t\t uptime:\t" << colorRESET << getUptime() << "\n";
+    cout << colorMAGENTA << "\t\t shell:\t" << colorRESET << getShell() << "\n";
+    cout << colorYELLOW <<"\t\t󰍛 CPU:  \t" << colorRESET << getCPU() << "\n";
+    cout << colorYELLOW <<"\t\t GPU:  \t" << colorRESET << getGPU() << "\n";
+    cout << colorRED << "\t\t RAM:  \t" << colorRESET << getRAM() << "\n";
 
     return 0;
 }
