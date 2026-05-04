@@ -61,7 +61,7 @@ int main (int argc, const char *argv[]) {
     cout << colorBLUE << "\t\t uptime:\t" << colorRESET << getUptime() << "\n";
     cout << colorMAGENTA << "\t\t shell:\t" << colorRESET << getShell() << "\n";
     cout << colorYELLOW <<"\t\t󰍛 CPU:  \t" << colorRESET << getCPU() << "\n";
-    cout << colorYELLOW <<"\t\t GPU:  \t" << colorRESET << getGPU() << "\n";
+    cout << colorYELLOW <<"\t\t󰾲 GPU:  \t" << colorRESET << getGPU() << "\n";
     cout << colorRED << "\t\t RAM:  \t" << colorRESET << getRAM() << "\n";
 
     return 0;
