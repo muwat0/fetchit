@@ -5,6 +5,8 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <unordered_map>
+#include <cctype>
 #include <sys/utsname.h>
 
 using std::string, std::cout;
@@ -215,35 +217,105 @@ string getCPU() {
 }
 
 string getGPU() {
+    auto gpus = getGpuIds();
+    if (gpus.empty()) return "";
+
+    auto normalizeHex = [](string hex) {
+        if (hex.rfind("0x", 0) == 0 || hex.rfind("0X", 0) == 0) {
+            hex = hex.substr(2);
+        }
+        for (char& c : hex) {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        return hex;
+    };
+
+    auto joinWith = [](const std::vector<string>& items, const string& sep) {
+        string out;
+        for (const auto& item : items) {
+            if (item.empty()) continue;
+            if (!out.empty()) out += sep;
+            out += item;
+        }
+        return out;
+    };
+
     std::ifstream readPciIds("/usr/share/hwdata/pci.ids");
 
     if(!readPciIds.is_open()) {
         std::cerr << "Error: Couldn't read /usr/share/hwdata/pci.ids\n";
-        return "";
+        std::vector<string> ids;
+        for (const auto& gpu : gpus) {
+            string vendor = normalizeHex(gpu.vendor);
+            string device = normalizeHex(gpu.device);
+            if (vendor.empty() || device.empty()) continue;
+            ids.push_back("0x" + vendor + ":0x" + device);
+        }
+        return joinWith(ids, " / ");
     }
 
-    auto gpus = getGpuIds();
-    string gpuHex;
-    for (const auto& gpu : gpus) {
-        gpuHex =  gpu.device;
-    }
-    gpuHex = gpuHex.substr(2);
-
-    string gpuName;
+    std::unordered_map<string, std::unordered_map<string, string>> pciMap;
     string line;
+    string currentVendor;
     while (std::getline(readPciIds, line)) {
         if(line.empty() || line[0] == '#') continue;
 
-        int space = line.find(" ");
-        if(line.substr(1, space - 1) == gpuHex) {
-            gpuName = line.substr(space + 2);
-            break;
+        if (line[0] != '\t') {
+            std::istringstream vendorLine(line);
+            if (vendorLine >> currentVendor) {
+                currentVendor = normalizeHex(currentVendor);
+            } else {
+                currentVendor.clear();
+            }
+            continue;
+        }
+
+        if (line.size() < 2 || line[1] == '\t') continue;
+        if (currentVendor.empty()) continue;
+
+        std::istringstream deviceLine(line.substr(1));
+        string deviceId;
+        if (!(deviceLine >> deviceId)) continue;
+
+        string deviceName;
+        std::getline(deviceLine, deviceName);
+        if (!deviceName.empty()) {
+            size_t first = deviceName.find_first_not_of(' ');
+            if (first != string::npos) deviceName = deviceName.substr(first);
+            else deviceName.clear();
+        }
+
+        if (!deviceName.empty()) {
+            pciMap[currentVendor][normalizeHex(deviceId)] = deviceName;
         }
     }
 
     readPciIds.close();
 
-    if (!gpuName.empty()) return gpuName;
+    std::vector<string> gpuNames;
+    for (const auto& gpu : gpus) {
+        string vendor = normalizeHex(gpu.vendor);
+        string device = normalizeHex(gpu.device);
+        if (vendor.empty() || device.empty()) continue;
+
+        string name;
+        auto vendorIt = pciMap.find(vendor);
+        if (vendorIt != pciMap.end()) {
+            auto deviceIt = vendorIt->second.find(device);
+            if (deviceIt != vendorIt->second.end()) {
+                name = deviceIt->second;
+            }
+        }
+
+        if (name.empty()) {
+            name = "0x" + vendor + ":0x" + device;
+        }
+
+        gpuNames.push_back(name);
+    }
+
+    string result = joinWith(gpuNames, " / ");
+    if (!result.empty()) return result;
 
     return "";
 }
