@@ -17,7 +17,7 @@ namespace fs = std::filesystem;
 string getUser();
 string getHost();
 string getDistro();
-string distroArt();
+void distroArt();
 string getKernel();
 string getUptime();
 string getShell();
@@ -69,7 +69,7 @@ int main () {
     cout << colorRED << "\t\t RAM:  \t" << colorRESET << getRAM() << "\n";
     cout << colorBLUE << "\t\t OS Date:\t" << colorRESET << getOsDate() << "\n";
 
-    cout << "distroID: " << distroArt() << "\n";
+    distroArt();
 
     return 0;
 }
@@ -129,12 +129,11 @@ string getDistro() {
     else return "";
 }
 
-string distroArt() {
+void distroArt() {
     std::ifstream readOsRelease("/etc/os-release");
 
     if(!readOsRelease.is_open()) {
         std::cerr << "Error: Couldn't read /etc/os-release\n";
-        return "";
     }
 
     string distroID;
@@ -155,8 +154,38 @@ string distroArt() {
 
     readOsRelease.close();
 
-    if (!distroID.empty()) return distroID;
-    else return "";
+    string asciiArts[][9] = {
+        {
+            "arch",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        },
+        {
+            "cachyos",
+            "   /''''''''''''/  ",
+            "  /''''''''''''/   ",
+            " /''''''/          ",
+            "/''''''/           ",
+            "\\......\\           ",
+            " \\......\\          ",
+            "  \\.............../",
+            "   \\............./",
+        }
+    };
+
+    for (int i = 0; i < sizeof(asciiArts) / sizeof(asciiArts[0]); ++i) {
+        if (asciiArts[i][0] == distroID) {
+            for (int j = 1; j < 9; ++j) {
+                cout << asciiArts[i][j] << "\n";
+            }
+        }
+    }
 }
 
 string getKernel() {
