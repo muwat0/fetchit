@@ -50,7 +50,7 @@ std::vector<gpuId> getGpuIds() {
     return gpus;
 }
 
-int main (int argc, const char *argv[]) {
+int main () {
     const string colorRED = "\033[1;31m";
     const string colorGREEN = "\033[1;32m";
     const string colorBLUE = "\033[1;34m";
