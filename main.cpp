@@ -113,7 +113,7 @@ string getDistro() {
         if(delimiter != string::npos) {
             string key = line.substr(0, delimiter);
 
-            if (key == "NAME"){ 
+            if (key == "PRETTY_NAME"){
                 distroName = line.substr(delimiter + 1);
                 distroName = distroName.substr(1, distroName.length() - 2);
             }
