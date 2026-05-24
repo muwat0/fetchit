@@ -17,6 +17,7 @@ namespace fs = std::filesystem;
 string getUser();
 string getHost();
 string getDistro();
+string distroArt();
 string getKernel();
 string getUptime();
 string getShell();
@@ -67,6 +68,8 @@ int main () {
     cout << colorYELLOW <<"\t\t󰾲 GPU:  \t" << colorRESET << getGPU() << "\n";
     cout << colorRED << "\t\t RAM:  \t" << colorRESET << getRAM() << "\n";
     cout << colorBLUE << "\t\t OS Date:\t" << colorRESET << getOsDate() << "\n";
+
+    cout << "distroID: " << distroArt() << "\n";
 
     return 0;
 }
@@ -123,6 +126,36 @@ string getDistro() {
     readOsRelease.close();
 
     if (!distroName.empty()) return distroName;
+    else return "";
+}
+
+string distroArt() {
+    std::ifstream readOsRelease("/etc/os-release");
+
+    if(!readOsRelease.is_open()) {
+        std::cerr << "Error: Couldn't read /etc/os-release\n";
+        return "";
+    }
+
+    string distroID;
+    string line;
+    while (std::getline(readOsRelease, line)) {
+        if(line.empty() || line[0] == '#') continue;
+
+        std::size_t delimiter = line.find("=");
+        if(delimiter != string::npos) {
+            string key = line.substr(0, delimiter);
+
+            if (key == "ID"){
+                distroID = line.substr(delimiter + 1);
+                if (distroID[0] == '"' && distroID[distroID.length() - 1] == '"') distroID = distroID.substr(1, distroID.length() - 2);
+            }
+        }
+    }
+
+    readOsRelease.close();
+
+    if (!distroID.empty()) return distroID;
     else return "";
 }
 
