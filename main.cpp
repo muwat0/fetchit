@@ -59,8 +59,6 @@ int main () {
     const string colorMAGENTA = "\033[1;35m";
     const string colorRESET = "\033[0m";
 
-    cout << "--- " << colorGREEN << getUser() << colorRESET << "@" << colorRED << getHost() << colorRESET << " ---\n";
-
     std::vector<string> infoLines = {
         colorGREEN + " distro:\t" + colorRESET + getDistro(),
         colorMAGENTA + " kernel:\t" + colorRESET + getKernel(),
@@ -78,10 +76,14 @@ int main () {
         if (line.size() > logoWidth) logoWidth = line.size();
     }
 
+    const string gap = "   ";
+    cout << string(logoWidth, ' ') << gap
+         << "--- " << colorGREEN << getUser() << colorRESET << "@" << colorRED << getHost() << colorRESET << " ---\n";
+    cout << "\n";
+
     size_t totalLines = infoLines.size();
     if (logoLines.size() > totalLines) totalLines = logoLines.size();
 
-    const string gap = "   ";
     for (size_t i = 0; i < totalLines; ++i) {
         if (i < logoLines.size()) {
             cout << logoLines[i];
