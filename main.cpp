@@ -334,28 +334,26 @@ std::vector<string> distroArt() {
             "ubuntu",
             Color::Orange,
             {
-                "------    |\\   ",     // TODO:
-                "   |      | \\  ",
-                "   |      |  / ",
-                "   |      |/   ",
-                "               ",
-                "               ",
-                "               ",
-                "               "
+               "       _  ",
+               "   ,--(_) ",
+               " _/ ;-._\\ ",
+               "(_)(   ) )",
+               "  \\ ;-'_/ ",
+               "   `--(_) "
             }
         },
         {
             "fedora",
             Color::Blue,
             {
-                "------    |\\   ",     // TODO:
-                "   |      | \\  ",
-                "   |      |  / ",
-                "   |      |/   ",
-                "               ",
-                "               ",
-                "               ",
-                "               "
+                "       _____  ",
+                "     /   __)\\ ",
+                "     |  /  \\ \\",
+                "  ___|  |__/ /",
+                " / (_    _)_/ ",
+                "/ /  |  |     ",
+                "\\ \\__/  |     ",
+                " \\(_____/     ",
             }
         },
         {
@@ -452,9 +450,6 @@ std::vector<string> distroArt() {
             }
         },
     };
-
-    // Ubuntu: Orange (+ Light/Deep Orange)
-    // Fedora: Blue + Gray/White
 
     std::vector<string> out;
     for (const auto& logo : logos) {
