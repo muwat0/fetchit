@@ -30,10 +30,26 @@ string getOsDate();
 
 enum class Color {
     Red,
+    RedLight,
+    RedDeep,
     Green,
+    GreenLight,
+    GreenDeep,
     Blue,
+    BlueLight,
+    BlueDeep,
     Yellow,
+    YellowLight,
     Magenta,
+    Purple,
+    PurpleLight,
+    PurpleDeep,
+    Orange,
+    OrangeLight,
+    OrangeDeep,
+    Cyan,
+    Gray,
+    Dark,
     Reset
 };
 
@@ -205,15 +221,33 @@ string getDistro() {
 string color(Color c) {
     switch (c) {
         case Color::Red:
+        case Color::RedLight:
+        case Color::RedDeep:
             return "\033[1;31m";
         case Color::Green:
+        case Color::GreenLight:
+        case Color::GreenDeep:
             return "\033[1;32m";
         case Color::Blue:
+        case Color::BlueLight:
+        case Color::BlueDeep:
             return "\033[1;34m";
         case Color::Yellow:
+        case Color::YellowLight:
+        case Color::Orange:
+        case Color::OrangeLight:
+        case Color::OrangeDeep:
             return "\033[1;33m";
         case Color::Magenta:
+        case Color::Purple:
+        case Color::PurpleLight:
+        case Color::PurpleDeep:
             return "\033[1;35m";
+        case Color::Cyan:
+            return "\033[1;36m";
+        case Color::Gray:
+        case Color::Dark:
+            return "\033[1;37m";
         case Color::Reset:
             return "\033[0m";
     }
