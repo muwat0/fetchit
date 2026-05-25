@@ -388,7 +388,7 @@ std::vector<string> distroArt() {
         },
         {
             "pop",
-            Color::Purple,
+            Color::Cyan,
             {
                 "______           ",
                 "\\   _ \\        __",
@@ -428,7 +428,7 @@ std::vector<string> distroArt() {
         },
         {
             "void",
-            Color::Gray,
+            Color::Green,
             {
                 "    ____   ",
                 "  'pfPfp.% ",
@@ -458,7 +458,7 @@ std::vector<string> distroArt() {
 
     std::vector<string> out;
     for (const auto& logo : logos) {
-        if (logo.id == "alpine") {
+        if (logo.id == distroID) {
             const string prefix = color(logo.color);
             const string suffix = color(Color::Reset);
             for (const auto& line : logo.art) {
