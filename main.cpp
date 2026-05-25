@@ -17,7 +17,7 @@ namespace fs = std::filesystem;
 string getUser();
 string getHost();
 string getDistro();
-void distroArt();
+std::vector<string> distroArt();
 string getKernel();
 string getUptime();
 string getShell();
@@ -59,18 +59,47 @@ int main () {
     const string colorMAGENTA = "\033[1;35m";
     const string colorRESET = "\033[0m";
 
-    cout << "\t\t\t--- " << colorGREEN << getUser() << colorRESET << "@" << colorRED << getHost() << colorRESET << " ---\n";
-    cout << colorGREEN << "\t\t distro:\t" << colorRESET << getDistro() << "\n";
-    cout << colorMAGENTA << "\t\t kernel:\t" << colorRESET << getKernel() << "\n";
-    cout << colorBLUE << "\t\t uptime:\t" << colorRESET << getUptime() << "\n";
-    cout << colorMAGENTA << "\t\t shell:\t" << colorRESET << getShell() << "\n";
-    cout << colorYELLOW <<"\t\t󰍛 CPU:  \t" << colorRESET << getCPU() << "\n";
-    cout << colorYELLOW <<"\t\t󰾲 GPU:  \t" << colorRESET << getGPU() << "\n";
-    cout << colorRED << "\t\t RAM:  \t" << colorRESET << getRAM() << "\n";
-    cout << colorBLUE << "\t\t OS Date:\t" << colorRESET << getOsDate() << "\n";
+    cout << "--- " << colorGREEN << getUser() << colorRESET << "@" << colorRED << getHost() << colorRESET << " ---\n";
 
-    cout << "\n\n";
-    distroArt();
+    std::vector<string> infoLines = {
+        colorGREEN + " distro:\t" + colorRESET + getDistro(),
+        colorMAGENTA + " kernel:\t" + colorRESET + getKernel(),
+        colorBLUE + " uptime:\t" + colorRESET + getUptime(),
+        colorMAGENTA + " shell:\t" + colorRESET + getShell(),
+        colorYELLOW + "󰍛 CPU:  \t" + colorRESET + getCPU(),
+        colorYELLOW + "󰾲 GPU:  \t" + colorRESET + getGPU(),
+        colorRED + " RAM:  \t" + colorRESET + getRAM(),
+        colorBLUE + " OS Date:\t" + colorRESET + getOsDate()
+    };
+
+    std::vector<string> logoLines = distroArt();
+    size_t logoWidth = 0;
+    for (const auto& line : logoLines) {
+        if (line.size() > logoWidth) logoWidth = line.size();
+    }
+
+    size_t totalLines = infoLines.size();
+    if (logoLines.size() > totalLines) totalLines = logoLines.size();
+
+    const string gap = "   ";
+    for (size_t i = 0; i < totalLines; ++i) {
+        if (i < logoLines.size()) {
+            cout << logoLines[i];
+            if (logoLines[i].size() < logoWidth) {
+                cout << string(logoWidth - logoLines[i].size(), ' ');
+            }
+        } else {
+            cout << string(logoWidth, ' ');
+        }
+
+        cout << gap;
+
+        if (i < infoLines.size()) {
+            cout << infoLines[i];
+        }
+
+        cout << "\n";
+    }
 
     return 0;
 }
@@ -130,7 +159,7 @@ string getDistro() {
     else return "";
 }
 
-void distroArt() {
+std::vector<string> distroArt() {
     std::ifstream readOsRelease("/etc/os-release");
 
     if(!readOsRelease.is_open()) {
@@ -191,13 +220,17 @@ void distroArt() {
         }
     };
 
-    for (int i = 0; i < sizeof(asciiArts) / sizeof(asciiArts[0]); ++i) {
+    std::vector<string> out;
+    for (int i = 0; i < static_cast<int>(sizeof(asciiArts) / sizeof(asciiArts[0])); ++i) {
         if (asciiArts[i][0] == distroID) {
             for (int j = 1; j < 9; ++j) {
-                cout << asciiArts[i][j] << "\n";
+                out.push_back(asciiArts[i][j]);
             }
+            return out;
         }
     }
+
+    return out;
 }
 
 string getKernel() {
