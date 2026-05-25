@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <vector>
+#include <array>
 #include <string>
 #include <sstream>
 #include <unordered_map>
@@ -10,6 +11,8 @@
 #include <sys/utsname.h>
 #include <sys/stat.h>
 #include <ctime>
+#include <clocale>
+#include <cwchar>
 
 using std::string, std::cout;
 namespace fs = std::filesystem;
@@ -17,6 +20,7 @@ namespace fs = std::filesystem;
 string getUser();
 string getHost();
 string getDistro();
+std::vector<string> distroArt();
 string getKernel();
 string getUptime();
 string getShell();
@@ -24,6 +28,39 @@ string getCPU();
 string getGPU();
 string getRAM();
 string getOsDate();
+
+enum class Color {
+    Red,
+    RedLight,
+    RedDeep,
+    Green,
+    GreenLight,
+    GreenDeep,
+    Blue,
+    BlueLight,
+    BlueDeep,
+    Yellow,
+    YellowLight,
+    Magenta,
+    Purple,
+    PurpleLight,
+    PurpleDeep,
+    Orange,
+    OrangeLight,
+    OrangeDeep,
+    Cyan,
+    Gray,
+    Dark,
+    Reset
+};
+
+string color(Color c);
+
+struct DistroLogo {
+    string id;
+    Color color;
+    std::array<string, 8> art;
+};
 
 struct gpuId {
     string vendor;
@@ -50,23 +87,85 @@ std::vector<gpuId> getGpuIds() {
     return gpus;
 }
 
-int main (int argc, const char *argv[]) {
-    const string colorRED = "\033[1;31m";
-    const string colorGREEN = "\033[1;32m";
-    const string colorBLUE = "\033[1;34m";
-    const string colorYELLOW = "\033[1;33m";
-    const string colorMAGENTA = "\033[1;35m";
-    const string colorRESET = "\033[0m";
+int main () {
+    std::setlocale(LC_ALL, "");
 
-    cout << "\t\t\t--- " << colorGREEN << getUser() << colorRESET << "@" << colorRED << getHost() << colorRESET << " ---\n";
-    cout << colorGREEN << "\t\t distro:\t" << colorRESET << getDistro() << "\n";
-    cout << colorMAGENTA << "\t\t kernel:\t" << colorRESET << getKernel() << "\n";
-    cout << colorBLUE << "\t\t uptime:\t" << colorRESET << getUptime() << "\n";
-    cout << colorMAGENTA << "\t\t shell:\t" << colorRESET << getShell() << "\n";
-    cout << colorYELLOW <<"\t\t󰍛 CPU:  \t" << colorRESET << getCPU() << "\n";
-    cout << colorYELLOW <<"\t\t󰾲 GPU:  \t" << colorRESET << getGPU() << "\n";
-    cout << colorRED << "\t\t RAM:  \t" << colorRESET << getRAM() << "\n";
-    cout << colorBLUE << "\t\t OS Date:\t" << colorRESET << getOsDate() << "\n";
+    auto displayWidth = [&](const string& text) {
+        std::mbstate_t state{};
+        const char* src = text.c_str();
+        size_t len = std::mbsrtowcs(nullptr, &src, 0, &state);
+        if (len == static_cast<size_t>(-1)) {
+            return static_cast<int>(text.size());
+        }
+        std::wstring wide(len, L'\0');
+        state = std::mbstate_t{};
+        src = text.c_str();
+        std::mbsrtowcs(wide.data(), &src, len, &state);
+
+        int width = 0;
+        for (wchar_t ch : wide) {
+            int w = wcwidth(ch);
+            if (w > 0) width += w;
+        }
+        return width;
+    };
+
+    auto formatLine = [&](Color c, const string& label, const string& value) {
+        const size_t labelWidth = 12;
+        const size_t valueGap = 2;
+        string padded = label;
+        int currentWidth = displayWidth(padded);
+        if (currentWidth < static_cast<int>(labelWidth)) {
+            padded += string(labelWidth - currentWidth, ' ');
+        }
+        padded += string(valueGap, ' ');
+        return color(c) + padded + color(Color::Reset) + value;
+    };
+
+    std::vector<string> infoLines = {
+        formatLine(Color::Green, " distro:", getDistro()),
+        formatLine(Color::Magenta, " kernel:", getKernel()),
+        formatLine(Color::Blue, " uptime:", getUptime()),
+        formatLine(Color::Magenta, " shell:", getShell()),
+        formatLine(Color::Yellow, "󰍛 CPU:", getCPU()),
+        formatLine(Color::Yellow, "󰾲 GPU:", getGPU()),
+        formatLine(Color::Red, " RAM:", getRAM()),
+        formatLine(Color::Blue, " OS Date:", getOsDate())
+    };
+
+    std::vector<string> logoLines = distroArt();
+    size_t logoWidth = 0;
+    for (const auto& line : logoLines) {
+        if (line.size() > logoWidth) logoWidth = line.size();
+    }
+
+    const string gap = "   ";
+    cout << string(logoWidth, ' ') << gap
+         << "--- " << color(Color::Green) << getUser() << color(Color::Reset)
+         << "@" << color(Color::Red) << getHost() << color(Color::Reset) << " ---\n";
+    cout << "\n";
+
+    size_t totalLines = infoLines.size();
+    if (logoLines.size() > totalLines) totalLines = logoLines.size();
+
+    for (size_t i = 0; i < totalLines; ++i) {
+        if (i < logoLines.size()) {
+            cout << logoLines[i];
+            if (logoLines[i].size() < logoWidth) {
+                cout << string(logoWidth - logoLines[i].size(), ' ');
+            }
+        } else {
+            cout << string(logoWidth, ' ');
+        }
+
+        cout << gap;
+
+        if (i < infoLines.size()) {
+            cout << infoLines[i];
+        }
+
+        cout << "\n";
+    }
 
     return 0;
 }
@@ -113,7 +212,7 @@ string getDistro() {
         if(delimiter != string::npos) {
             string key = line.substr(0, delimiter);
 
-            if (key == "NAME"){ 
+            if (key == "PRETTY_NAME"){
                 distroName = line.substr(delimiter + 1);
                 distroName = distroName.substr(1, distroName.length() - 2);
             }
@@ -124,6 +223,247 @@ string getDistro() {
 
     if (!distroName.empty()) return distroName;
     else return "";
+}
+
+string color(Color c) {
+    switch (c) {
+        case Color::Red:
+        case Color::RedLight:
+        case Color::RedDeep:
+            return "\033[1;31m";
+        case Color::Green:
+        case Color::GreenLight:
+        case Color::GreenDeep:
+            return "\033[1;32m";
+        case Color::Blue:
+        case Color::BlueLight:
+        case Color::BlueDeep:
+            return "\033[1;34m";
+        case Color::Yellow:
+        case Color::YellowLight:
+        case Color::Orange:
+        case Color::OrangeLight:
+        case Color::OrangeDeep:
+            return "\033[1;33m";
+        case Color::Magenta:
+        case Color::Purple:
+        case Color::PurpleLight:
+        case Color::PurpleDeep:
+            return "\033[1;35m";
+        case Color::Cyan:
+            return "\033[1;36m";
+        case Color::Gray:
+        case Color::Dark:
+            return "\033[1;37m";
+        case Color::Reset:
+            return "\033[0m";
+    }
+
+    return "\033[0m";
+}
+
+std::vector<string> distroArt() {
+    std::ifstream readOsRelease("/etc/os-release");
+
+    if(!readOsRelease.is_open()) {
+        std::cerr << "Error: Couldn't read /etc/os-release\n";
+    }
+
+    string distroID;
+    string line;
+    while (std::getline(readOsRelease, line)) {
+        if(line.empty() || line[0] == '#') continue;
+
+        std::size_t delimiter = line.find("=");
+        if(delimiter != string::npos) {
+            string key = line.substr(0, delimiter);
+
+            if (key == "ID"){
+                distroID = line.substr(delimiter + 1);
+                if (distroID[0] == '"' && distroID[distroID.length() - 1] == '"') distroID = distroID.substr(1, distroID.length() - 2);
+            }
+        }
+    }
+
+    readOsRelease.close();
+
+    const std::vector<DistroLogo> logos = {
+        {
+            "arch",
+            Color::Blue,
+            {
+                "      /\\      ",
+                "     /  \\     ",
+                "    /    \\    ",
+                "   /      \\   ",
+                "  /   ,,   \\  ",
+                " /   |  |   \\ ",
+                "/_-''    ''-_\\",
+                "               "
+            }
+        },
+        {
+            "cachyos",
+            Color::Green,
+            {
+                "   /''''''''''''/   ",
+                "  /''''''''''''/    ",
+                " /''''''/           ",
+                "/''''''/            ",
+                "\\......\\          ",
+                " \\......\\         ",
+                "  \\.............../",
+                "   \\............./ "
+            }
+        },
+        {
+            "debian",
+            Color::Red,
+            {
+                "  _____  ",
+                " /  __ \\",
+                "|  /    |",
+                "|  \\___-",
+                "-_       ",
+                "  --_    ",
+                "         ",
+                "         "
+            }
+        },
+        {
+            "ubuntu",
+            Color::Orange,
+            {
+               "       _  ",
+               "   ,--(_) ",
+               " _/ ;-._\\ ",
+               "(_)(   ) )",
+               "  \\ ;-'_/ ",
+               "   `--(_) "
+            }
+        },
+        {
+            "fedora",
+            Color::Blue,
+            {
+                "       _____  ",
+                "     /   __)\\ ",
+                "     |  /  \\ \\",
+                "  ___|  |__/ /",
+                " / (_    _)_/ ",
+                "/ /  |  |     ",
+                "\\ \\__/  |     ",
+                " \\(_____/     ",
+            }
+        },
+        {
+            "manjaro",
+            Color::Green,
+            {
+                "||||||||| ||||",
+                "||||||||| ||||",
+                "||||      ||||",
+                "|||| |||| ||||",
+                "|||| |||| ||||",
+                "|||| |||| ||||",
+                "|||| |||| ||||",
+                "              "
+            }
+        },
+        {
+            "opensuse",
+            Color::Green,
+            {
+                "  _______  ",
+                "__|   __ \\ ",
+                "     / .\\ \\",
+                "     \\__/ |",
+                "   _______|",
+                "   \\_______",
+                "__________/",
+                "           "
+            }
+        },
+        {
+            "pop",
+            Color::Cyan,
+            {
+                "______           ",
+                "\\   _ \\        __",
+                " \\ \\ \\ \\      / /",
+                "  \\ \\_\\ \\    / / ",
+                "   \\  ___\\  /_/  ",
+                "    \\ \\    _     ",
+                "   __\\_\\__(_)_   ",
+                "  (___________)` "
+            }
+        },
+        {
+            "linuxmint",
+            Color::Green,
+            {
+                " __________  ",
+                "|_          \\",
+                "  | | _____ |",
+                "  | | | | | |",
+                "  | | | | | |",
+                "  | \\_____/ |",
+                "  \\_________/",
+            }
+        },
+        {
+            "endeavouros",
+            Color::Purple,
+            {
+                "          /o.       ",
+                "        /sssso-     ",
+                "      /ossssssso:   ",
+                "    /ssssssssssso+  ",
+                "  /ssssssssssssssso+",
+                "//osssssssssssssso+-",
+                " `+++++++++++++++-` "
+            }
+        },
+        {
+            "void",
+            Color::Green,
+            {
+                "    ____   ",
+                "  'pfPfp.% ",
+                "//  _._  \\\\",
+                "UU |===| UU",
+                "\\\\  ^~^  //",
+                " `0PpppP'  ",
+                "   `````   "
+            }
+        },
+        {
+            "alpine",
+            Color::Blue,
+            {
+                "   /\\ /\\    ",
+                "  // \\  \\   ",
+                " //   \\  \\  ",
+                "///    \\  \\ ",
+                "//      \\  \\",
+                "         \\  "
+            }
+        },
+    };
+
+    std::vector<string> out;
+    for (const auto& logo : logos) {
+        if (logo.id == distroID) {
+            const string prefix = color(logo.color);
+            const string suffix = color(Color::Reset);
+            for (const auto& line : logo.art) {
+                out.push_back(prefix + line + suffix);
+            }
+            return out;
+        }
+    }
+
+    return out;
 }
 
 string getKernel() {
