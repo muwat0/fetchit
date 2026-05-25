@@ -10,6 +10,8 @@
 #include <sys/utsname.h>
 #include <sys/stat.h>
 #include <ctime>
+#include <clocale>
+#include <cwchar>
 
 using std::string, std::cout;
 namespace fs = std::filesystem;
@@ -52,6 +54,7 @@ std::vector<gpuId> getGpuIds() {
 }
 
 int main () {
+    std::setlocale(LC_ALL, "");
     const string colorRED = "\033[1;31m";
     const string colorGREEN = "\033[1;32m";
     const string colorBLUE = "\033[1;34m";
@@ -59,15 +62,47 @@ int main () {
     const string colorMAGENTA = "\033[1;35m";
     const string colorRESET = "\033[0m";
 
+    auto displayWidth = [&](const string& text) {
+        std::mbstate_t state{};
+        const char* src = text.c_str();
+        size_t len = std::mbsrtowcs(nullptr, &src, 0, &state);
+        if (len == static_cast<size_t>(-1)) {
+            return static_cast<int>(text.size());
+        }
+        std::wstring wide(len, L'\0');
+        state = std::mbstate_t{};
+        src = text.c_str();
+        std::mbsrtowcs(wide.data(), &src, len, &state);
+
+        int width = 0;
+        for (wchar_t ch : wide) {
+            int w = wcwidth(ch);
+            if (w > 0) width += w;
+        }
+        return width;
+    };
+
+    auto formatLine = [&](const string& color, const string& label, const string& value) {
+        const size_t labelWidth = 12;
+        const size_t valueGap = 2;
+        string padded = label;
+        int currentWidth = displayWidth(padded);
+        if (currentWidth < static_cast<int>(labelWidth)) {
+            padded += string(labelWidth - currentWidth, ' ');
+        }
+        padded += string(valueGap, ' ');
+        return color + padded + colorRESET + value;
+    };
+
     std::vector<string> infoLines = {
-        colorGREEN + " distro:\t" + colorRESET + getDistro(),
-        colorMAGENTA + " kernel:\t" + colorRESET + getKernel(),
-        colorBLUE + " uptime:\t" + colorRESET + getUptime(),
-        colorMAGENTA + " shell:\t" + colorRESET + getShell(),
-        colorYELLOW + "󰍛 CPU:  \t" + colorRESET + getCPU(),
-        colorYELLOW + "󰾲 GPU:  \t" + colorRESET + getGPU(),
-        colorRED + " RAM:  \t" + colorRESET + getRAM(),
-        colorBLUE + " OS Date:\t" + colorRESET + getOsDate()
+        formatLine(colorGREEN, " distro:", getDistro()),
+        formatLine(colorMAGENTA, " kernel:", getKernel()),
+        formatLine(colorBLUE, " uptime:", getUptime()),
+        formatLine(colorMAGENTA, " shell:", getShell()),
+        formatLine(colorYELLOW, "󰍛 CPU:", getCPU()),
+        formatLine(colorYELLOW, "󰾲 GPU:", getGPU()),
+        formatLine(colorRED, " RAM:", getRAM()),
+        formatLine(colorBLUE, " OS Date:", getOsDate())
     };
 
     std::vector<string> logoLines = distroArt();
