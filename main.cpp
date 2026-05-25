@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <vector>
+#include <array>
 #include <string>
 #include <sstream>
 #include <unordered_map>
@@ -54,6 +55,12 @@ enum class Color {
 };
 
 string color(Color c);
+
+struct DistroLogo {
+    string id;
+    Color color;
+    std::array<string, 8> art;
+};
 
 struct gpuId {
     string vendor;
@@ -280,47 +287,58 @@ std::vector<string> distroArt() {
 
     readOsRelease.close();
 
-    string asciiArts[][9] = {
+    const std::vector<DistroLogo> logos = {
         {
             "arch",
-            "      /\\      ",
-            "     /  \\     ",
-            "    /    \\    ",
-            "   /      \\   ",
-            "  /   ,,   \\  ",
-            " /   |  |   \\ ",
-            "/_-''    ''-_\\",
-            "               "
+            Color::Blue,
+            {
+                "      /\\      ",
+                "     /  \\     ",
+                "    /    \\    ",
+                "   /      \\   ",
+                "  /   ,,   \\  ",
+                " /   |  |   \\ ",
+                "/_-''    ''-_\\",
+                "               "
+            }
         },
         {
             "cachyos",
-            "   /''''''''''''/   ",
-            "  /''''''''''''/    ",
-            " /''''''/           ",
-            "/''''''/            ",
-            "\\......\\          ",
-            " \\......\\         ",
-            "  \\.............../",
-            "   \\............./ "
+            Color::Green,
+            {
+                "   /''''''''''''/   ",
+                "  /''''''''''''/    ",
+                " /''''''/           ",
+                "/''''''/            ",
+                "\\......\\          ",
+                " \\......\\         ",
+                "  \\.............../",
+                "   \\............./ "
+            }
         },
         {
             "debian",
-            "  _____  ",
-            " /  __ \\",
-            "|  /    |",
-            "|  \\___-",
-            "-_       ",
-            "  --_    ",
-            "         ",
-            "         "
+            Color::Red,
+            {
+                "  _____  ",
+                " /  __ \\",
+                "|  /    |",
+                "|  \\___-",
+                "-_       ",
+                "  --_    ",
+                "         ",
+                "         "
+            }
         }
     };
 
     std::vector<string> out;
-    for (int i = 0; i < static_cast<int>(sizeof(asciiArts) / sizeof(asciiArts[0])); ++i) {
-        if (asciiArts[i][0] == distroID) {
-            for (int j = 1; j < 9; ++j) {
-                out.push_back(asciiArts[i][j]);
+    for (const auto& logo : logos) {
+        if (logo.id == distroID) {
+            const string prefix = color(logo.color);
+            const string suffix = color(Color::Reset);
+            for (const auto& line : logo.art) {
+                out.push_back(prefix + line + suffix);
             }
             return out;
         }
