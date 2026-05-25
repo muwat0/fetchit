@@ -28,6 +28,17 @@ string getGPU();
 string getRAM();
 string getOsDate();
 
+enum class Color {
+    Red,
+    Green,
+    Blue,
+    Yellow,
+    Magenta,
+    Reset
+};
+
+string color(Color c);
+
 struct gpuId {
     string vendor;
     string device;
@@ -55,12 +66,6 @@ std::vector<gpuId> getGpuIds() {
 
 int main () {
     std::setlocale(LC_ALL, "");
-    const string colorRED = "\033[1;31m";
-    const string colorGREEN = "\033[1;32m";
-    const string colorBLUE = "\033[1;34m";
-    const string colorYELLOW = "\033[1;33m";
-    const string colorMAGENTA = "\033[1;35m";
-    const string colorRESET = "\033[0m";
 
     auto displayWidth = [&](const string& text) {
         std::mbstate_t state{};
@@ -82,7 +87,7 @@ int main () {
         return width;
     };
 
-    auto formatLine = [&](const string& color, const string& label, const string& value) {
+    auto formatLine = [&](Color c, const string& label, const string& value) {
         const size_t labelWidth = 12;
         const size_t valueGap = 2;
         string padded = label;
@@ -91,18 +96,18 @@ int main () {
             padded += string(labelWidth - currentWidth, ' ');
         }
         padded += string(valueGap, ' ');
-        return color + padded + colorRESET + value;
+        return color(c) + padded + color(Color::Reset) + value;
     };
 
     std::vector<string> infoLines = {
-        formatLine(colorGREEN, " distro:", getDistro()),
-        formatLine(colorMAGENTA, " kernel:", getKernel()),
-        formatLine(colorBLUE, " uptime:", getUptime()),
-        formatLine(colorMAGENTA, " shell:", getShell()),
-        formatLine(colorYELLOW, "󰍛 CPU:", getCPU()),
-        formatLine(colorYELLOW, "󰾲 GPU:", getGPU()),
-        formatLine(colorRED, " RAM:", getRAM()),
-        formatLine(colorBLUE, " OS Date:", getOsDate())
+        formatLine(Color::Green, " distro:", getDistro()),
+        formatLine(Color::Magenta, " kernel:", getKernel()),
+        formatLine(Color::Blue, " uptime:", getUptime()),
+        formatLine(Color::Magenta, " shell:", getShell()),
+        formatLine(Color::Yellow, "󰍛 CPU:", getCPU()),
+        formatLine(Color::Yellow, "󰾲 GPU:", getGPU()),
+        formatLine(Color::Red, " RAM:", getRAM()),
+        formatLine(Color::Blue, " OS Date:", getOsDate())
     };
 
     std::vector<string> logoLines = distroArt();
@@ -113,7 +118,8 @@ int main () {
 
     const string gap = "   ";
     cout << string(logoWidth, ' ') << gap
-         << "--- " << colorGREEN << getUser() << colorRESET << "@" << colorRED << getHost() << colorRESET << " ---\n";
+         << "--- " << color(Color::Green) << getUser() << color(Color::Reset)
+         << "@" << color(Color::Red) << getHost() << color(Color::Reset) << " ---\n";
     cout << "\n";
 
     size_t totalLines = infoLines.size();
@@ -194,6 +200,25 @@ string getDistro() {
 
     if (!distroName.empty()) return distroName;
     else return "";
+}
+
+string color(Color c) {
+    switch (c) {
+        case Color::Red:
+            return "\033[1;31m";
+        case Color::Green:
+            return "\033[1;32m";
+        case Color::Blue:
+            return "\033[1;34m";
+        case Color::Yellow:
+            return "\033[1;33m";
+        case Color::Magenta:
+            return "\033[1;35m";
+        case Color::Reset:
+            return "\033[0m";
+    }
+
+    return "\033[0m";
 }
 
 std::vector<string> distroArt() {
