@@ -329,12 +329,136 @@ std::vector<string> distroArt() {
                 "         ",
                 "         "
             }
-        }
+        },
+        {
+            "ubuntu",
+            Color::Orange,
+            {
+                "------    |\\   ",     // TODO:
+                "   |      | \\  ",
+                "   |      |  / ",
+                "   |      |/   ",
+                "               ",
+                "               ",
+                "               ",
+                "               "
+            }
+        },
+        {
+            "fedora",
+            Color::Blue,
+            {
+                "------    |\\   ",     // TODO:
+                "   |      | \\  ",
+                "   |      |  / ",
+                "   |      |/   ",
+                "               ",
+                "               ",
+                "               ",
+                "               "
+            }
+        },
+        {
+            "manjaro",
+            Color::Green,
+            {
+                "||||||||| ||||",
+                "||||||||| ||||",
+                "||||      ||||",
+                "|||| |||| ||||",
+                "|||| |||| ||||",
+                "|||| |||| ||||",
+                "|||| |||| ||||",
+                "              "
+            }
+        },
+        {
+            "opensuse",
+            Color::Green,
+            {
+                "  _______  ",
+                "__|   __ \\ ",
+                "     / .\\ \\",
+                "     \\__/ |",
+                "   _______|",
+                "   \\_______",
+                "__________/",
+                "           "
+            }
+        },
+        {
+            "pop",
+            Color::Purple,
+            {
+                "______           ",
+                "\\   _ \\        __",
+                " \\ \\ \\ \\      / /",
+                "  \\ \\_\\ \\    / / ",
+                "   \\  ___\\  /_/  ",
+                "    \\ \\    _     ",
+                "   __\\_\\__(_)_   ",
+                "  (___________)` "
+            }
+        },
+        {
+            "linuxmint",
+            Color::Green,
+            {
+                " __________  ",
+                "|_          \\",
+                "  | | _____ |",
+                "  | | | | | |",
+                "  | | | | | |",
+                "  | \\_____/ |",
+                "  \\_________/",
+            }
+        },
+        {
+            "endeavouros",
+            Color::Purple,
+            {
+                "          /o.       ",
+                "        /sssso-     ",
+                "      /ossssssso:   ",
+                "    /ssssssssssso+  ",
+                "  /ssssssssssssssso+",
+                "//osssssssssssssso+-",
+                " `+++++++++++++++-` "
+            }
+        },
+        {
+            "void",
+            Color::Gray,
+            {
+                "    ____   ",
+                "  'pfPfp.% ",
+                "//  _._  \\\\",
+                "UU |===| UU",
+                "\\\\  ^~^  //",
+                " `0PpppP'  ",
+                "   `````   "
+            }
+        },
+        {
+            "alpine",
+            Color::Blue,
+            {
+                "   /\\ /\\    ",
+                "  // \\  \\   ",
+                " //   \\  \\  ",
+                "///    \\  \\ ",
+                "//      \\  \\",
+                "         \\  "
+            }
+        },
     };
+
+    // Ubuntu: Orange (+ Light/Deep Orange)
+    // Fedora: Blue + Gray/White
 
     std::vector<string> out;
     for (const auto& logo : logos) {
-        if (logo.id == distroID) {
+        if (logo.id == "alpine") {
             const string prefix = color(logo.color);
             const string suffix = color(Color::Reset);
             for (const auto& line : logo.art) {
