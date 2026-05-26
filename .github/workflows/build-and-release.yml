@@ -54,7 +54,16 @@ jobs:
         run: apt-get update && apt-get install -y --no-install-recommends make g++ git tar ca-certificates
 
       - name: Build release tarball
-        run: make release VERSION=${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        env:
+          VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        run: |
+          if make -n release >/dev/null 2>&1; then
+            make release VERSION="$VERSION"
+          else
+            make clean build
+            mkdir -p dist
+            tar -C build -czf "dist/fetchit-${VERSION}-linux-x86_64-gnu.tar.gz" fetchit
+          fi
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
