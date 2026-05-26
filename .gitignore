@@ -2,3 +2,5 @@
 build/
 Build/
 build-*/
+dist/
+

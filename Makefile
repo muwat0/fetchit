@@ -17,19 +17,19 @@ VERSION ?= $(shell git describe --tags --dirty --always 2>/dev/null)
 
 all: build
 
-build: | $(BUILD_DIR)
 build: $(BUILD_DIR)/$(APP)
 
-$(BUILD_DIR)/$(APP): $(SRC) | $(BUILD_DIR)
+$(BUILD_DIR)/$(APP): $(SRC) | $(BUILD_DIR)/.dir
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
-$(BUILD_DIR):
+
+$(BUILD_DIR)/.dir:
 	mkdir -p $(BUILD_DIR)
+	touch $@
 
 run: build
 	./$(BUILD_DIR)/$(APP)
 
-install: | $(BUILD_DIR)
 install: build
 	install -d "$(DESTDIR)$(BINDIR)"
 	install -m 0755 $(BUILD_DIR)/$(APP) "$(DESTDIR)$(BINDIR)/$(APP)"
@@ -40,11 +40,11 @@ uninstall:
 clean:
 	rm -f $(BUILD_DIR)/$(APP)
 
-dist: | $(BUILD_DIR) $(DIST_DIR)
-dist: build
+dist: build | $(DIST_DIR)/.dir
 	tar -C $(BUILD_DIR) -czf $(DIST_DIR)/$(APP)-$(VERSION)-linux-x86_64-gnu.tar.gz $(APP)
 
-$(DIST_DIR):
+$(DIST_DIR)/.dir:
 	mkdir -p $(DIST_DIR)
+	touch $@
 
 release: clean build dist
