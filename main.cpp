@@ -142,6 +142,197 @@ Config defaultConfig() {
     return cfg;
 }
 
+static bool getenvNonEmpty(const char* name, string& out) {
+    const char* v = std::getenv(name);
+    if (!v || !*v) return false;
+    out = v;
+    return true;
+}
+
+static fs::path defaultConfigPath() {
+    // XDG base dir spec: $XDG_CONFIG_HOME, fallback to ~/.config.
+    // We keep it as a single file so users can drop in one config.
+    string xdg;
+    if (getenvNonEmpty("XDG_CONFIG_HOME", xdg)) {
+        return fs::path(xdg) / "fetchit" / "config.toml";
+    }
+
+    string home;
+    if (getenvNonEmpty("HOME", home)) {
+        return fs::path(home) / ".config" / "fetchit" / "config.toml";
+    }
+
+    return {};
+}
+
+static fs::path findExistingConfigPath() {
+    const fs::path p = defaultConfigPath();
+    if (p.empty()) return {};
+
+    std::error_code ec;
+    if (fs::exists(p, ec) && !ec) return p;
+    return {};
+}
+
+static string toLowerAscii(string s) {
+    for (char& c : s) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return s;
+}
+
+static bool parseColorName(const string& name, Color& out) {
+    const string n = toLowerAscii(name);
+
+    // Keep this small and aligned with Color enum values used by fetchit.
+    if (n == "red") {
+        out = Color::Red;
+        return true;
+    }
+    if (n == "green") {
+        out = Color::Green;
+        return true;
+    }
+    if (n == "blue") {
+        out = Color::Blue;
+        return true;
+    }
+    if (n == "yellow") {
+        out = Color::Yellow;
+        return true;
+    }
+    if (n == "magenta") {
+        out = Color::Magenta;
+        return true;
+    }
+    if (n == "purple") {
+        out = Color::Purple;
+        return true;
+    }
+    if (n == "cyan") {
+        out = Color::Cyan;
+        return true;
+    }
+    if (n == "gray" || n == "grey") {
+        out = Color::Gray;
+        return true;
+    }
+    if (n == "dark") {
+        out = Color::Dark;
+        return true;
+    }
+
+    return false;
+}
+
+static Config loadConfigOrDefault(vector<string>& warnings) {
+    warnings.clear();
+    const fs::path configPath = findExistingConfigPath();
+    if (configPath.empty()) return defaultConfig();
+
+    // Start from defaults and apply overrides.
+    Config cfg = defaultConfig();
+
+    toml::table tbl;
+    try {
+        tbl = toml::parse_file(configPath.string());
+    } catch (const toml::parse_error& err) {
+        std::ostringstream oss;
+        oss << "fetchit: warning: invalid config " << configPath.string() << ": " << err << "; using defaults";
+        warnings.push_back(oss.str());
+        return defaultConfig();
+    }
+
+    // modules = ["distro", ...]
+    if (auto modulesArr = tbl["modules"].as_array()) {
+        vector<Module> modules;
+        modules.reserve(modulesArr->size());
+        for (const auto& node : *modulesArr) {
+            const auto* s = node.as_string();
+            if (!s) {
+                warnings.push_back("fetchit: warning: modules[] must be strings; ignoring non-string entry");
+                continue;
+            }
+            const string name = s->get();
+            const ModuleSpec* spec = findModuleSpec(name);
+            if (!spec) {
+                warnings.push_back("fetchit: warning: unknown module '" + name + "'; ignoring");
+                continue;
+            }
+            modules.push_back(spec->id);
+        }
+
+        if (modules.empty()) {
+            warnings.push_back("fetchit: warning: modules list is empty after validation; using defaults");
+        } else {
+            cfg.modules = std::move(modules);
+        }
+    } else if (tbl.contains("modules")) {
+        warnings.push_back("fetchit: warning: modules must be an array of strings; using defaults");
+    }
+
+    // [logo]
+    if (auto logoTbl = tbl["logo"].as_table()) {
+        if (auto enabled = (*logoTbl)["enabled"].value<bool>()) {
+            cfg.logoEnabled = *enabled;
+        } else if (logoTbl->contains("enabled")) {
+            warnings.push_back("fetchit: warning: logo.enabled must be a boolean; using default");
+        }
+    } else if (tbl.contains("logo")) {
+        warnings.push_back("fetchit: warning: logo must be a table; ignoring");
+    }
+
+    // [labels]
+    if (auto labelsTbl = tbl["labels"].as_table()) {
+        for (auto&& [k, v] : *labelsTbl) {
+            const string key = string(k.str());
+            const ModuleSpec* spec = findModuleSpec(key);
+            if (!spec) {
+                warnings.push_back("fetchit: warning: unknown labels key '" + key + "'; ignoring");
+                continue;
+            }
+            auto* s = v.as_string();
+            if (!s) {
+                warnings.push_back("fetchit: warning: labels." + key + " must be a string; ignoring");
+                continue;
+            }
+            cfg.labels[spec->id] = s->get();
+        }
+    } else if (tbl.contains("labels")) {
+        warnings.push_back("fetchit: warning: labels must be a table; ignoring");
+    }
+
+    // [colors]
+    if (auto colorsTbl = tbl["colors"].as_table()) {
+        for (auto&& [k, v] : *colorsTbl) {
+            const string key = string(k.str());
+            const ModuleSpec* spec = findModuleSpec(key);
+            if (!spec) {
+                warnings.push_back("fetchit: warning: unknown colors key '" + key + "'; ignoring");
+                continue;
+            }
+            auto* s = v.as_string();
+            if (!s) {
+                warnings.push_back("fetchit: warning: colors." + key + " must be a string; ignoring");
+                continue;
+            }
+
+            Color c;
+            const string colorName = s->get();
+            if (!parseColorName(colorName, c)) {
+                warnings.push_back("fetchit: warning: unknown color name '" + colorName + "' for colors." + key
+                                   + "; ignoring");
+                continue;
+            }
+            cfg.colors[spec->id] = c;
+        }
+    } else if (tbl.contains("colors")) {
+        warnings.push_back("fetchit: warning: colors must be a table; ignoring");
+    }
+
+    return cfg;
+}
+
 struct DistroLogo {
     string id;
     Color color;
@@ -176,6 +367,12 @@ vector<gpuId> getGpuIds() {
 int main () {
     std::setlocale(LC_ALL, "");
 
+    vector<string> configWarnings;
+    const Config config = loadConfigOrDefault(configWarnings);
+    for (const auto& w : configWarnings) {
+        std::cerr << w << "\n";
+    }
+
     auto displayWidth = [&](const string& text) {
         std::mbstate_t state{};
         const char* src = text.c_str();
@@ -208,18 +405,26 @@ int main () {
         return color(c) + padded + color(Color::Reset) + value;
     };
 
-    vector<string> infoLines = {
-        formatLine(Color::Green, " distro:", getDistro()),
-        formatLine(Color::Magenta, " kernel:", getKernel()),
-        formatLine(Color::Blue, " uptime:", getUptime()),
-        formatLine(Color::Magenta, " shell:", getShell()),
-        formatLine(Color::Yellow, "󰍛 CPU:", getCPU()),
-        formatLine(Color::Yellow, "󰾲 GPU:", getGPU()),
-        formatLine(Color::Red, " RAM:", getRAM()),
-        formatLine(Color::Blue, " OS Date:", getOsDate())
-    };
+    vector<string> infoLines;
+    infoLines.reserve(config.modules.size());
+    for (Module m : config.modules) {
+        const ModuleSpec* spec = findModuleSpec(m);
+        if (!spec) continue;
 
-    vector<string> logoLines = distroArt();
+        auto labelIt = config.labels.find(m);
+        const string& label = (labelIt != config.labels.end()) ? labelIt->second : spec->defaultLabel;
+
+        auto colorIt = config.colors.find(m);
+        const Color c = (colorIt != config.colors.end()) ? colorIt->second : spec->defaultColor;
+
+        const string value = spec->getter ? spec->getter() : string{};
+        infoLines.push_back(formatLine(c, label, value));
+    }
+
+    vector<string> logoLines;
+    if (config.logoEnabled) {
+        logoLines = distroArt();
+    }
     size_t logoWidth = 0;
     for (const auto& line : logoLines) {
         if (line.size() > logoWidth) logoWidth = line.size();
