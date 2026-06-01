@@ -10,13 +10,14 @@
 #include <unordered_map>
 #include <cctype>
 #include <string_view>
+#include <functional>
 #include <sys/utsname.h>
 #include <sys/stat.h>
 #include <ctime>
 #include <clocale>
 #include <cwchar>
 
-// Config parsing (vendored)
+// TOML++ (Config parsing)
 #include <toml++/toml.hpp>
 
 using std::string, std::cout, std::vector;
@@ -79,8 +80,6 @@ struct EnumHash {
     }
 };
 
-// Built-in configuration defaults. These should preserve the current behavior
-// when no config file is present (or when it's invalid).
 struct Config {
     vector<Module> modules;
     bool logoEnabled = true;
@@ -125,6 +124,157 @@ static const ModuleSpec* findModuleSpec(Module m) {
     return nullptr;
 }
 
+enum class FlagValue {
+    None,
+    Required,
+};
+
+struct FlagSpec {
+    std::string_view longName;
+    char shortName = '\0';
+    FlagValue value = FlagValue::None;
+    std::string_view valueName;
+    std::string_view help;
+    std::function<void(std::string_view)> onValue;
+    std::function<void()> onFlag;
+};
+
+struct ParsedCli {
+    bool showHelp = false;
+    vector<string> positionals;
+    vector<string> warnings;
+};
+
+static const FlagSpec* findLongFlag(const vector<FlagSpec>& specs, std::string_view name) {
+    for (const auto& s : specs) {
+        if (s.longName == name) return &s;
+    }
+    return nullptr;
+}
+
+static const FlagSpec* findShortFlag(const vector<FlagSpec>& specs, char name) {
+    for (const auto& s : specs) {
+        if (s.shortName == name && name != '\0') return &s;
+    }
+    return nullptr;
+}
+
+static ParsedCli parseCli(int argc, char** argv, const vector<FlagSpec>& specs) {
+    ParsedCli out;
+    bool onlyPositionals = false;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string_view arg = argv[i] ? argv[i] : "";
+        if (arg.empty()) continue;
+
+        if (!onlyPositionals && arg == "--") {
+            onlyPositionals = true;
+            continue;
+        }
+
+        if (!onlyPositionals && arg.rfind("--", 0) == 0) {
+            std::string_view name = arg.substr(2);
+            std::string_view value;
+            const size_t eq = name.find('=');
+            if (eq != std::string_view::npos) {
+                value = name.substr(eq + 1);
+                name = name.substr(0, eq);
+            }
+
+            const FlagSpec* spec = findLongFlag(specs, name);
+            if (!spec) {
+                out.warnings.push_back("fetchit: warning: unknown option '--" + string(name) + "'; ignoring");
+                continue;
+            }
+
+            if (spec->value == FlagValue::None) {
+                if (!value.empty()) {
+                    out.warnings.push_back("fetchit: warning: option '--" + string(name)
+                                           + "' does not take a value; ignoring value");
+                }
+                if (spec->onFlag) spec->onFlag();
+            } else {
+                if (value.empty()) {
+                    if (i + 1 >= argc) {
+                        out.warnings.push_back("fetchit: warning: option '--" + string(name)
+                                               + "' requires a value; ignoring");
+                        continue;
+                    }
+                    value = argv[++i];
+                }
+                if (spec->onValue) spec->onValue(value);
+            }
+            continue;
+        }
+
+        if (!onlyPositionals && arg.size() >= 2 && arg[0] == '-' && arg[1] != '-') {
+            std::string_view group = arg.substr(1);
+            bool consumedValue = false;
+
+            for (size_t j = 0; j < group.size(); ++j) {
+                const char ch = group[j];
+                const FlagSpec* spec = findShortFlag(specs, ch);
+                if (!spec) {
+                    out.warnings.push_back(string("fetchit: warning: unknown option '-") + ch + "'; ignoring");
+                    continue;
+                }
+
+                if (spec->value == FlagValue::None) {
+                    if (spec->onFlag) spec->onFlag();
+                    continue;
+                }
+
+                std::string_view value = group.substr(j + 1);
+                if (value.empty()) {
+                    if (i + 1 >= argc) {
+                        out.warnings.push_back(string("fetchit: warning: option '-") + ch
+                                               + "' requires a value; ignoring");
+                        break;
+                    }
+                    value = argv[++i];
+                }
+
+                if (spec->onValue) spec->onValue(value);
+                consumedValue = true;
+                break;
+            }
+
+            (void)consumedValue;
+            continue;
+        }
+
+        out.positionals.push_back(string(arg));
+    }
+
+    return out;
+}
+
+static void printHelp(const char* argv0, const vector<FlagSpec>& specs) {
+    const char* prog = (argv0 && *argv0) ? argv0 : "fetchit";
+    std::cout << "Usage: " << prog << " [options]\n\n";
+    std::cout << "Options:\n";
+    for (const auto& s : specs) {
+        std::cout << "  ";
+        bool any = false;
+        if (s.shortName != '\0') {
+            std::cout << "-" << s.shortName;
+            any = true;
+        }
+        if (!s.longName.empty()) {
+            if (any) std::cout << ", ";
+            std::cout << "--" << s.longName;
+            any = true;
+        }
+        if (s.value == FlagValue::Required) {
+            std::cout << " <" << (s.valueName.empty() ? "value" : s.valueName) << ">";
+        }
+        std::cout << "\n";
+        if (!s.help.empty()) {
+            std::cout << "      " << s.help << "\n";
+        }
+    }
+}
+
 Config defaultConfig() {
     Config cfg;
 
@@ -151,7 +301,6 @@ static bool getenvNonEmpty(const char* name, string& out) {
 
 static fs::path defaultConfigPath() {
     // XDG base dir spec: $XDG_CONFIG_HOME, fallback to ~/.config.
-    // We keep it as a single file so users can drop in one config.
     string xdg;
     if (getenvNonEmpty("XDG_CONFIG_HOME", xdg)) {
         return fs::path(xdg) / "fetchit" / "config.toml";
@@ -184,7 +333,6 @@ static string toLowerAscii(string s) {
 static bool parseColorName(const string& name, Color& out) {
     const string n = toLowerAscii(name);
 
-    // Keep this small and aligned with Color enum values used by fetchit.
     if (n == "red") {
         out = Color::Red;
         return true;
@@ -230,7 +378,6 @@ static Config loadConfigOrDefault(vector<string>& warnings) {
     const fs::path configPath = findExistingConfigPath();
     if (configPath.empty()) return defaultConfig();
 
-    // Start from defaults and apply overrides.
     Config cfg = defaultConfig();
 
     toml::table tbl;
@@ -243,7 +390,6 @@ static Config loadConfigOrDefault(vector<string>& warnings) {
         return defaultConfig();
     }
 
-    // modules = ["distro", ...]
     if (auto modulesArr = tbl["modules"].as_array()) {
         vector<Module> modules;
         modules.reserve(modulesArr->size());
@@ -364,8 +510,34 @@ vector<gpuId> getGpuIds() {
     return gpus;
 }
 
-int main () {
+int main (int argc, char** argv) {
     std::setlocale(LC_ALL, "");
+
+    ParsedCli cliState;
+    const vector<FlagSpec> flagSpecs = {
+        FlagSpec{
+            .longName = "help",
+            .shortName = 'h',
+            .value = FlagValue::None,
+            .valueName = {},
+            .help = "Show this help message",
+            .onValue = {},
+            .onFlag = [&]() { cliState.showHelp = true; },
+        },
+    };
+
+    ParsedCli cli = parseCli(argc, argv, flagSpecs);
+    cliState.warnings.insert(cliState.warnings.end(), cli.warnings.begin(), cli.warnings.end());
+    cliState.positionals = std::move(cli.positionals);
+
+    if (cliState.showHelp) {
+        printHelp(argv && argv[0] ? argv[0] : "fetchit", flagSpecs);
+        return 0;
+    }
+
+    for (const auto& w : cliState.warnings) {
+        std::cerr << w << "\n";
+    }
 
     vector<string> configWarnings;
     const Config config = loadConfigOrDefault(configWarnings);
