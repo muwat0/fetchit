@@ -11,6 +11,7 @@
 #include <cctype>
 #include <string_view>
 #include <functional>
+#include <optional>
 #include <sys/utsname.h>
 #include <sys/stat.h>
 #include <ctime>
@@ -141,6 +142,8 @@ struct FlagSpec {
 
 struct ParsedCli {
     bool showHelp = false;
+    bool noConfig = false;
+    std::optional<fs::path> configPath;
     vector<string> positionals;
     vector<string> warnings;
 };
@@ -314,12 +317,15 @@ static fs::path defaultConfigPath() {
     return {};
 }
 
+static bool fileExists(const fs::path& p) {
+    if (p.empty()) return false;
+    std::error_code ec;
+    return fs::exists(p, ec) && !ec;
+}
+
 static fs::path findExistingConfigPath() {
     const fs::path p = defaultConfigPath();
-    if (p.empty()) return {};
-
-    std::error_code ec;
-    if (fs::exists(p, ec) && !ec) return p;
+    if (fileExists(p)) return p;
     return {};
 }
 
@@ -373,10 +379,21 @@ static bool parseColorName(const string& name, Color& out) {
     return false;
 }
 
-static Config loadConfigOrDefault(vector<string>& warnings) {
+static Config loadConfigOrDefault(vector<string>& warnings, const std::optional<fs::path>& overridePath, bool noConfig) {
     warnings.clear();
-    const fs::path configPath = findExistingConfigPath();
-    if (configPath.empty()) return defaultConfig();
+    if (noConfig) return defaultConfig();
+
+    fs::path configPath;
+    if (overridePath.has_value()) {
+        configPath = *overridePath;
+        if (!fileExists(configPath)) {
+            warnings.push_back("fetchit: warning: config file not found: " + configPath.string() + "; using defaults");
+            return defaultConfig();
+        }
+    } else {
+        configPath = findExistingConfigPath();
+        if (configPath.empty()) return defaultConfig();
+    }
 
     Config cfg = defaultConfig();
 
@@ -524,6 +541,24 @@ int main (int argc, char** argv) {
             .onValue = {},
             .onFlag = [&]() { cliState.showHelp = true; },
         },
+        FlagSpec{
+            .longName = "config",
+            .shortName = 'c',
+            .value = FlagValue::Required,
+            .valueName = "path",
+            .help = "Use an explicit config file path",
+            .onValue = [&](std::string_view v) { cliState.configPath = fs::path(string(v)); },
+            .onFlag = {},
+        },
+        FlagSpec{
+            .longName = "no-config",
+            .shortName = '\0',
+            .value = FlagValue::None,
+            .valueName = {},
+            .help = "Do not load any config file",
+            .onValue = {},
+            .onFlag = [&]() { cliState.noConfig = true; },
+        },
     };
 
     ParsedCli cli = parseCli(argc, argv, flagSpecs);
@@ -540,7 +575,7 @@ int main (int argc, char** argv) {
     }
 
     vector<string> configWarnings;
-    const Config config = loadConfigOrDefault(configWarnings);
+    const Config config = loadConfigOrDefault(configWarnings, cliState.configPath, cliState.noConfig);
     for (const auto& w : configWarnings) {
         std::cerr << w << "\n";
     }
@@ -1144,8 +1179,6 @@ string getRAM() {
         std::cerr << "Error: Couldn't read /proc/meminfo\n";
         return "";
     }
-
-    //
 
     int memkbs = 0;
     string line;
