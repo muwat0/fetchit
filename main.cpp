@@ -33,6 +33,17 @@ string getGPU();
 string getRAM();
 string getOsDate();
 
+enum class Module {
+    Distro,
+    Kernel,
+    Uptime,
+    Shell,
+    CPU,
+    GPU,
+    RAM,
+    OsDate,
+};
+
 enum class Color {
     Red,
     RedLight,
@@ -59,6 +70,62 @@ enum class Color {
 };
 
 string color(Color c);
+
+struct EnumHash {
+    template <class T>
+    size_t operator()(T v) const noexcept {
+        return static_cast<size_t>(v);
+    }
+};
+
+// Built-in configuration defaults. These should preserve the current behavior
+// when no config file is present (or when it's invalid).
+struct Config {
+    vector<Module> modules;
+    bool logoEnabled = true;
+
+    std::unordered_map<Module, string, EnumHash> labels;
+    std::unordered_map<Module, Color, EnumHash> colors;
+};
+
+Config defaultConfig() {
+    Config cfg;
+    cfg.modules = {
+        Module::Distro,
+        Module::Kernel,
+        Module::Uptime,
+        Module::Shell,
+        Module::CPU,
+        Module::GPU,
+        Module::RAM,
+        Module::OsDate,
+    };
+
+    cfg.labels = {
+        {Module::Distro, " distro:"},
+        {Module::Kernel, " kernel:"},
+        {Module::Uptime, " uptime:"},
+        {Module::Shell, " shell:"},
+        {Module::CPU, "󰍛 CPU:"},
+        {Module::GPU, "󰾲 GPU:"},
+        {Module::RAM, " RAM:"},
+        {Module::OsDate, " OS Date:"},
+    };
+
+    cfg.colors = {
+        {Module::Distro, Color::Green},
+        {Module::Kernel, Color::Magenta},
+        {Module::Uptime, Color::Blue},
+        {Module::Shell, Color::Magenta},
+        {Module::CPU, Color::Yellow},
+        {Module::GPU, Color::Yellow},
+        {Module::RAM, Color::Red},
+        {Module::OsDate, Color::Blue},
+    };
+
+    cfg.logoEnabled = true;
+    return cfg;
+}
 
 struct DistroLogo {
     string id;
