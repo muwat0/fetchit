@@ -11,6 +11,106 @@
 - GPU name resolution via `/usr/share/hwdata/pci.ids` (falls back to hex IDs if missing).
 - Accounts for Unicode character width for better alignment in terminals.
 
+## Configuration
+
+`fetchit` can be configured via a TOML file.
+
+### Config File Location (XDG)
+
+`fetchit` searches for a config file in the following location:
+
+- `$XDG_CONFIG_HOME/fetchit/config.toml`
+- If `XDG_CONFIG_HOME` is not set: `~/.config/fetchit/config.toml`
+
+If the config file is missing, defaults are used (no warning).
+
+If the config file exists but is invalid TOML or has invalid values, `fetchit` prints warnings to `stderr` and continues using built-in defaults.
+
+### Precedence
+
+1. Built-in defaults
+2. Config file
+3. CLI flags (`--config`, `--no-config`)
+
+### CLI Flags
+
+- `-h`, `--help`: show help
+- `-c <path>`, `--config <path>`: use an explicit config path
+- `--no-config`: do not load any config file
+
+### Supported Settings
+
+- `modules = [...]` (array of strings)
+  - Controls module order and visibility.
+  - Supported module names:
+    - `distro`, `kernel`, `uptime`, `shell`, `cpu`, `gpu`, `ram`, `os_date`
+
+- `[logo]`
+  - `enabled = true|false`
+
+- `[labels]` (table)
+  - Per-module label strings.
+  - Icons are part of the label string (e.g. `" distro:"`).
+
+- `[colors]` (table)
+  - Per-module color names (strings).
+  - Supported colors:
+    - `red`, `green`, `blue`, `yellow`, `magenta`, `purple`, `cyan`, `gray`/`grey`, `dark`
+
+### Example `config.toml`
+
+```toml
+modules = ["kernel", "distro", "cpu", "gpu", "ram"]
+
+[logo]
+enabled = true
+
+[labels]
+kernel = " kernel:"
+distro = " distro:"
+cpu = "󰍛 CPU:"
+gpu = "󰾲 GPU:"
+ram = " RAM:"
+
+[colors]
+kernel = "magenta"
+distro = "green"
+cpu = "yellow"
+gpu = "yellow"
+ram = "red"
+```
+
+### Default Config
+
+This is the built-in default configuration (equivalent to running with no config file):
+
+```toml
+modules = ["distro", "kernel", "uptime", "shell", "cpu", "gpu", "ram", "os_date"]
+
+[logo]
+enabled = true
+
+[labels]
+distro  = " distro:"
+kernel  = " kernel:"
+uptime  = " uptime:"
+shell   = " shell:"
+cpu     = "󰍛 CPU:"
+gpu     = "󰾲 GPU:"
+ram     = " RAM:"
+os_date = " OS Date:"
+
+[colors]
+distro  = "green"
+kernel  = "magenta"
+uptime  = "blue"
+shell   = "magenta"
+cpu     = "yellow"
+gpu     = "yellow"
+ram     = "red"
+os_date = "blue"
+```
+
 ## Supported Distro Logos
 
 Logos are matched against `/etc/os-release` `ID`:
