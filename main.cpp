@@ -509,6 +509,9 @@ string getUptime() {
 string getShell() {
     string shell;
     shell = std::getenv("SHELL");
+
+    while(shell.find('/') < shell.length()) shell.erase(0, shell.find('/') + 1);
+
     if (!shell.empty()) return shell;
 
     return "";
