@@ -15,6 +15,9 @@
 #include <clocale>
 #include <cwchar>
 
+// Config parsing (vendored)
+#include <toml++/toml.hpp>
+
 using std::string, std::cout, std::vector;
 namespace fs = std::filesystem;
 

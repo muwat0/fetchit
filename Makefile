@@ -8,7 +8,7 @@ BINDIR ?= $(PREFIX)/bin
 DESTDIR ?=
 
 CXX ?= g++
-CXXFLAGS ?= -O2 -Wall -Wextra -std=c++17 -pipe
+CXXFLAGS ?= -O2 -Wall -Wextra -std=c++17 -pipe -Ithird_party/toml++/include
 LDFLAGS ?= -static-libstdc++ -static-libgcc
 
 VERSION ?= $(shell git describe --tags --dirty --always 2>/dev/null)
