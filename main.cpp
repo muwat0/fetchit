@@ -6,6 +6,7 @@
 #include <array>
 #include <string>
 #include <sstream>
+#include <iomanip>
 #include <unordered_map>
 #include <cctype>
 #include <sys/utsname.h>
@@ -14,13 +15,13 @@
 #include <clocale>
 #include <cwchar>
 
-using std::string, std::cout;
+using std::string, std::cout, std::vector;
 namespace fs = std::filesystem;
 
 string getUser();
 string getHost();
 string getDistro();
-std::vector<string> distroArt();
+vector<string> distroArt();
 string getKernel();
 string getUptime();
 string getShell();
@@ -67,8 +68,8 @@ struct gpuId {
     string device;
 };
 
-std::vector<gpuId> getGpuIds() {
-    std::vector<gpuId> gpus;
+vector<gpuId> getGpuIds() {
+    vector<gpuId> gpus;
     std::string pciPath = "/sys/bus/pci/devices/";
 
     for (const auto& entry : fs::directory_iterator(pciPath)) {
@@ -122,7 +123,7 @@ int main () {
         return color(c) + padded + color(Color::Reset) + value;
     };
 
-    std::vector<string> infoLines = {
+    vector<string> infoLines = {
         formatLine(Color::Green, " distro:", getDistro()),
         formatLine(Color::Magenta, " kernel:", getKernel()),
         formatLine(Color::Blue, " uptime:", getUptime()),
@@ -133,7 +134,7 @@ int main () {
         formatLine(Color::Blue, " OS Date:", getOsDate())
     };
 
-    std::vector<string> logoLines = distroArt();
+    vector<string> logoLines = distroArt();
     size_t logoWidth = 0;
     for (const auto& line : logoLines) {
         if (line.size() > logoWidth) logoWidth = line.size();
@@ -262,7 +263,7 @@ string color(Color c) {
     return "\033[0m";
 }
 
-std::vector<string> distroArt() {
+vector<string> distroArt() {
     std::ifstream readOsRelease("/etc/os-release");
 
     if(!readOsRelease.is_open()) {
@@ -287,7 +288,7 @@ std::vector<string> distroArt() {
 
     readOsRelease.close();
 
-    const std::vector<DistroLogo> logos = {
+    const vector<DistroLogo> logos = {
         {
             "arch",
             Color::Blue,
@@ -451,7 +452,7 @@ std::vector<string> distroArt() {
         },
     };
 
-    std::vector<string> out;
+    vector<string> out;
     for (const auto& logo : logos) {
         if (logo.id == distroID) {
             const string prefix = color(logo.color);
@@ -581,7 +582,7 @@ string getGPU() {
         return hex;
     };
 
-    auto joinWith = [](const std::vector<string>& items, const string& sep) {
+    auto joinWith = [](const vector<string>& items, const string& sep) {
         string out;
         for (const auto& item : items) {
             if (item.empty()) continue;
@@ -595,7 +596,7 @@ string getGPU() {
 
     if(!readPciIds.is_open()) {
         std::cerr << "Error: Couldn't read /usr/share/hwdata/pci.ids\n";
-        std::vector<string> ids;
+        vector<string> ids;
         for (const auto& gpu : gpus) {
             string vendor = normalizeHex(gpu.vendor);
             string device = normalizeHex(gpu.device);
@@ -643,7 +644,7 @@ string getGPU() {
 
     readPciIds.close();
 
-    std::vector<string> gpuNames;
+    vector<string> gpuNames;
     for (const auto& gpu : gpus) {
         string vendor = normalizeHex(gpu.vendor);
         string device = normalizeHex(gpu.device);
@@ -700,7 +701,7 @@ string getRAM() {
     memkbs /= 1024;
     float memory = memkbs / 1024.0f;
     std::stringstream ss;
-    ss << memory << " GB";
+    ss << std::fixed << std::setprecision(2) << memory << " GB";
     string memGigs = ss.str();
 
     if (!memGigs.empty()) return memGigs;
