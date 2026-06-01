@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <unordered_map>
 #include <cctype>
+#include <string_view>
 #include <sys/utsname.h>
 #include <sys/stat.h>
 #include <ctime>
@@ -88,40 +89,54 @@ struct Config {
     std::unordered_map<Module, Color, EnumHash> colors;
 };
 
+struct ModuleSpec {
+    Module id;
+    std::string_view name;
+    string defaultLabel;
+    Color defaultColor;
+    string (*getter)();
+};
+
+static const std::array<ModuleSpec, 8>& moduleSpecs() {
+    static const std::array<ModuleSpec, 8> specs = {
+        ModuleSpec{Module::Distro, "distro", " distro:", Color::Green, &getDistro},
+        ModuleSpec{Module::Kernel, "kernel", " kernel:", Color::Magenta, &getKernel},
+        ModuleSpec{Module::Uptime, "uptime", " uptime:", Color::Blue, &getUptime},
+        ModuleSpec{Module::Shell, "shell", " shell:", Color::Magenta, &getShell},
+        ModuleSpec{Module::CPU, "cpu", "󰍛 CPU:", Color::Yellow, &getCPU},
+        ModuleSpec{Module::GPU, "gpu", "󰾲 GPU:", Color::Yellow, &getGPU},
+        ModuleSpec{Module::RAM, "ram", " RAM:", Color::Red, &getRAM},
+        ModuleSpec{Module::OsDate, "os_date", " OS Date:", Color::Blue, &getOsDate},
+    };
+    return specs;
+}
+
+static const ModuleSpec* findModuleSpec(std::string_view name) {
+    for (const auto& spec : moduleSpecs()) {
+        if (spec.name == name) return &spec;
+    }
+    return nullptr;
+}
+
+static const ModuleSpec* findModuleSpec(Module m) {
+    for (const auto& spec : moduleSpecs()) {
+        if (spec.id == m) return &spec;
+    }
+    return nullptr;
+}
+
 Config defaultConfig() {
     Config cfg;
-    cfg.modules = {
-        Module::Distro,
-        Module::Kernel,
-        Module::Uptime,
-        Module::Shell,
-        Module::CPU,
-        Module::GPU,
-        Module::RAM,
-        Module::OsDate,
-    };
 
-    cfg.labels = {
-        {Module::Distro, " distro:"},
-        {Module::Kernel, " kernel:"},
-        {Module::Uptime, " uptime:"},
-        {Module::Shell, " shell:"},
-        {Module::CPU, "󰍛 CPU:"},
-        {Module::GPU, "󰾲 GPU:"},
-        {Module::RAM, " RAM:"},
-        {Module::OsDate, " OS Date:"},
-    };
-
-    cfg.colors = {
-        {Module::Distro, Color::Green},
-        {Module::Kernel, Color::Magenta},
-        {Module::Uptime, Color::Blue},
-        {Module::Shell, Color::Magenta},
-        {Module::CPU, Color::Yellow},
-        {Module::GPU, Color::Yellow},
-        {Module::RAM, Color::Red},
-        {Module::OsDate, Color::Blue},
-    };
+    cfg.modules.clear();
+    cfg.labels.clear();
+    cfg.colors.clear();
+    cfg.modules.reserve(moduleSpecs().size());
+    for (const auto& spec : moduleSpecs()) {
+        cfg.modules.push_back(spec.id);
+        cfg.labels[spec.id] = spec.defaultLabel;
+        cfg.colors[spec.id] = spec.defaultColor;
+    }
 
     cfg.logoEnabled = true;
     return cfg;
